@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AuraFlow: Esercizio di Respirazione</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color-inspira: #6ab3f8, #a2d2ff;
+            --bg-color-trattieni-pieno: #8367c7, #b4a7d6;
+            --bg-color-espira: #f8b46a, #ffd6a5;
+            --bg-color-trattieni-vuoto: #8d99ae, #b3c1d1;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .grainy:before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            width: 300%;
+            height: 300%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1024 1024' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.05;
+            animation: grain-animation 1s steps(10) infinite;
+            pointer-events: none;
+        }
+        
+        .session-ended .grainy:before {
+            display: none;
+        }
+
+        @keyframes grain-animation {
+          0%, 100% { transform: translate(0, 0); }
+          10% { transform: translate(-5%, -10%); } 20% { transform: translate(-15%, 5%); }
+          30% { transform: translate(7%, -25%); } 40% { transform: translate(-5%, 25%); }
+          50% { transform: translate(-15%, 10%); } 60% { transform: translate(15%, 0%); }
+          70% { transform: translate(0%, 15%); } 80% { transform: translate(3%, 35%); }
+          90% { transform: translate(-10%, 10%); }
+        }
+
+        .gradient-bg {
+            transition: background 2.5s ease-in-out;
+        }
+
+        @keyframes dark-iridescent-animation {
+            0%{background-position:0% 50%}
+            50%{background-position:100% 50%}
+            100%{background-position:0% 50%}
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .bubble {
+            --bubble-scale: 1;
+            transform: scale(var(--bubble-scale));
+            box-shadow: inset 0 0 50px #fff, inset 20px 0 80px #f0f, inset -20px 0 80px #0ff, inset 20px 0 300px #f0f, inset -20px 0 300px #0ff, 0 0 50px #fff, -10px 0 80px #f0f, 10px 0 80px #0ff;
+        }
+
+        .iridescent-text {
+            background: linear-gradient(90deg, #a2d2ff, #b4a7d6, #ffd6a5, #a2d2ff);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: iridescent-animation 4s linear infinite;
+        }
+
+        @keyframes iridescent-animation { to { background-position: 200% center; } }
+        
+        .time-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        .time-btn:active { transform: scale(0.9); }
+
+        @keyframes restart-arrow-draw {
+            from { stroke-dashoffset: 65; } to { stroke-dashoffset: -65; }
+        }
+        .restart-arrow-path {
+            stroke-dasharray: 65;
+            animation: restart-arrow-draw 2s infinite linear;
+        }
+        
+        .logo-bubble {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-block;
+            vertical-align: -0.2em; /* Allineamento verticale preciso */
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 8px rgba(255,255,255,0.7), inset 4px 0 12px #f0f, inset -4px 0 12px #0ff, 0 0 8px #fff, -2px 0 12px #f0f, 2px 0 12px #0ff;
+        }
+
+        #timer-text {
+            transition: transform 0.3s ease-out, color 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        .timer-highlight {
+            color: #ffffff !important;
+            transform: scale(1.2) !important;
+        }
+    </style>
+</head>
+<body class="gradient-bg grainy text-white antialiased overflow-hidden">
+
+    <div id="app" class="h-screen w-screen flex flex-col items-center justify-center p-4 transition-opacity duration-500">
+
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="w-full max-w-sm">
+            <div class="glass-panel p-8 rounded-[2.5rem]">
+                <h1 class="text-4xl font-bold text-center mb-1 flex justify-center items-center">
+                    <span class="iridescent-text opacity-80">Aura</span>
+                    <div class="logo-bubble mx-3"></div>
+                    <span class="iridescent-text opacity-80">Flow</span>
+                </h1>
+                <p class="text-center text-white/60 mb-10">Personalizza il tuo esercizio.</p>
+
+                <div class="space-y-6">
+                    <!-- Start Duration Control -->
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-white/80 text-lg">Inizia da:</label>
+                        <div class="flex items-center space-x-4">
+                            <button id="start-minus-btn" class="time-btn glass-panel">-</button>
+                            <span id="start-duration-value" class="text-3xl font-bold w-16 text-center">6s</span>
+                            <button id="start-plus-btn" class="time-btn glass-panel">+</button>
+                        </div>
+                    </div>
+                    <!-- End Duration Control -->
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-white/80 text-lg">Termina a:</label>
+                        <div class="flex items-center space-x-4">
+                            <button id="end-minus-btn" class="time-btn glass-panel">-</button>
+                            <span id="end-duration-value" class="text-3xl font-bold w-16 text-center">10s</span>
+                            <button id="end-plus-btn" class="time-btn glass-panel">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="w-full bg-white text-black font-bold text-lg py-4 px-4 rounded-2xl mt-12 hover:bg-opacity-90 transform hover:scale-105 transition-all duration-300">
+                    Inizia Sessione
+                </button>
+                 <button id="notes-btn" class="w-full text-white/70 font-medium py-2 px-4 rounded-lg mt-4 hover:text-white transition-colors duration-300">
+                    Note e Consigli
+                </button>
+            </div>
+        </div>
+
+        <!-- Exercise Screen -->
+        <div id="exercise-screen" class="hidden h-full w-full flex flex-col items-center justify-center text-center">
+            <div class="absolute top-8 right-8">
+                <button id="stop-btn" class="glass-panel rounded-full h-12 w-12 flex items-center justify-center font-bold text-lg hover:bg-white/20 transition-all duration-300 z-20">
+                    ✕
+                </button>
+            </div>
+            
+            <div class="flex-grow flex flex-col items-center justify-center">
+                <div id="bubble" class="w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-full bubble z-10"></div>
+            </div>
+
+            <div class="h-1/3 flex flex-col items-center justify-center z-20">
+                <p id="phase-text" class="text-4xl md:text-5xl font-bold capitalize mb-4 transition-opacity duration-1000">Preparati</p>
+                <p id="timer-text" class="text-8xl md:text-9xl font-bold transition-opacity duration-1000 text-white/80 opacity-0">0</p>
+            </div>
+        </div>
+        
+        <!-- Notes Modal -->
+        <div id="notes-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div class="glass-panel w-full max-w-lg p-8 rounded-3xl text-white">
+                <h2 class="text-2xl font-bold mb-4">Note e Consigli</h2>
+                <ul class="space-y-3 text-white/80 list-disc list-inside">
+                    <li>Se la tendenza è di protrudere troppo l’addome, contrarre delicatamente i muscoli appena sopra l’osso pubico e poi inspirare.</li>
+                    <li>Inspirare ed espirare silenziosamente, mantenendo la gola aperta.</li>
+                    <li>Mantenere le costole "sospese" (alte) durante tutto il ciclo, specialmente durante l'espirazione.</li>
+                    <li>Espirare con una "s" lunga, controllata e sottile per gestire il flusso d'aria.</li>
+                </ul>
+                <button id="close-notes-btn" class="w-full bg-white text-black font-bold py-3 px-4 rounded-xl mt-8 hover:bg-opacity-90 transform hover:scale-105 transition-all duration-300">
+                    Ho Capito
+                </button>
+            </div>
+        </div>
+
+        <!-- Completion Screen -->
+        <div id="completion-screen" class="hidden fixed inset-0 flex flex-col items-center justify-center p-4 z-40">
+            <div id="completion-message" class="relative w-full h-full flex flex-col items-center justify-center text-center opacity-0 scale-95 transition-all duration-1000 ease-out">
+                <h2 class="iridescent-text text-8xl md:text-9xl font-extrabold">Hai finito</h2>
+                <button id="restart-btn" class="group glass-panel rounded-full w-20 h-20 flex items-center justify-center mt-12 hover:bg-white/20 transform hover:scale-110 transition-all duration-300">
+                    <svg class="w-12 h-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <path class="restart-arrow-path" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.952 14.233A8.252 8.252 0 0112 20.25a8.25 8.25 0 01-8.25-8.25 8.25 8.25 0 018.25-8.25c2.68 0 5.107 1.28 6.666 3.334"></path>
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.023 9.348h4.992v-4.992"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const setupScreen = document.getElementById('setup-screen');
+        const exerciseScreen = document.getElementById('exercise-screen');
+        const completionScreen = document.getElementById('completion-screen');
+        const completionMessage = document.getElementById('completion-message');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const notesBtn = document.getElementById('notes-btn');
+        const closeNotesBtn = document.getElementById('close-notes-btn');
+        const notesModal = document.getElementById('notes-modal');
+        const body = document.body;
+        const bubble = document.getElementById('bubble');
+        const phaseText = document.getElementById('phase-text');
+        const timerText = document.getElementById('timer-text');
+        
+        const startMinusBtn = document.getElementById('start-minus-btn');
+        const startPlusBtn = document.getElementById('start-plus-btn');
+        const endMinusBtn = document.getElementById('end-minus-btn');
+        const endPlusBtn = document.getElementById('end-plus-btn');
+        const startDurationValue = document.getElementById('start-duration-value');
+        const endDurationValue = document.getElementById('end-duration-value');
+
+        // State
+        let audioContext;
+        let soundGain;
+        const state = {
+            isRunning: false,
+            startDuration: 6,
+            endDuration: 10,
+            currentDuration: 6,
+            timer: 0,
+            phases: ['Inspira', 'Trattieni', 'Espira', 'Trattieni'],
+            currentPhaseIndex: 0,
+            intervalId: null,
+            countdownInterval: null,
+        };
+        
+        const phaseStyles = {
+            'Inspira': { color: 'var(--bg-color-inspira)' },
+            'Trattieni': { color: 'var(--bg-color-trattieni-pieno)' },
+            'Espira': { color: 'var(--bg-color-espira)' },
+            'Trattieni ': { color: 'var(--bg-color-trattieni-vuoto)' },
+        };
+
+        // Functions
+        function setDarkGradient() {
+            body.style.background = `linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1c1c3c)`;
+            body.style.backgroundSize = '400% 400%';
+            body.style.animation = 'dark-iridescent-animation 15s ease infinite';
+        }
+
+        function init() {
+            setDarkGradient();
+            updateDurationDisplay();
+        }
+
+        function updateDurationDisplay() {
+            startDurationValue.textContent = `${state.startDuration}s`;
+            endDurationValue.textContent = `${state.endDuration}s`;
+        }
+
+        function initAudio() {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    soundGain = audioContext.createGain();
+                    soundGain.gain.setValueAtTime(0, audioContext.currentTime);
+                    soundGain.connect(audioContext.destination);
+                } catch (e) { console.error("Web Audio API not supported."); }
+            }
+        }
+        
+        function playUISound() {
+            playSound(150, 0.2, 0.1);
+        }
+
+        function playSound(pitch, volume = 0.4, duration = 0.25) {
+            if (!audioContext) return;
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
+            oscillator.connect(soundGain);
+            const now = audioContext.currentTime;
+            soundGain.gain.cancelScheduledValues(now);
+            soundGain.gain.setValueAtTime(0, now);
+            soundGain.gain.linearRampToValueAtTime(volume, now + 0.01);
+            soundGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            oscillator.start(now);
+            oscillator.stop(now + duration + 0.05);
+        }
+
+        function playBreathSound() {
+            if (!audioContext) return;
+            const bufferSize = audioContext.sampleRate * 2.5;
+            const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+            const whiteNoise = audioContext.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            const lowpassFilter = audioContext.createBiquadFilter();
+            lowpassFilter.type = 'lowpass';
+            lowpassFilter.frequency.setValueAtTime(400, audioContext.currentTime);
+            const gainNode = audioContext.createGain();
+            const now = audioContext.currentTime;
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.3, now + 0.5);
+            gainNode.gain.linearRampToValueAtTime(0, now + 2.5);
+            whiteNoise.connect(lowpassFilter);
+            lowpassFilter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            whiteNoise.start();
+        }
+
+        function runCountdown() {
+            let count = 3;
+            phaseText.textContent = "Iniziamo tra...";
+            timerText.textContent = count;
+            timerText.style.opacity = '1';
+            playSound(440, 0.5);
+
+            state.countdownInterval = setInterval(() => {
+                count--;
+                if (count >= 1) { 
+                    timerText.textContent = count;
+                    playSound(440, 0.5);
+                } else {
+                    clearInterval(state.countdownInterval);
+                    state.isRunning = true;
+                    state.currentPhaseIndex = -1;
+                    state.currentDuration = state.startDuration;
+                    moveToNextPhase();
+                }
+            }, 1000);
+        }
+
+        function startBreathing() {
+            initAudio();
+            setupScreen.classList.add('opacity-0', 'pointer-events-none');
+            body.style.background = `linear-gradient(135deg, ${phaseStyles['Inspira'].color})`;
+            body.style.animation = 'none'; // Stop dark gradient animation
+            setTimeout(() => {
+                setupScreen.classList.add('hidden');
+                exerciseScreen.classList.remove('hidden');
+                exerciseScreen.classList.add('opacity-100');
+                runCountdown();
+            }, 500);
+        }
+
+        function stopBreathing() {
+            state.isRunning = false;
+            clearInterval(state.intervalId);
+            clearInterval(state.countdownInterval);
+            body.classList.remove('session-ended');
+            
+            completionScreen.classList.add('hidden');
+            completionMessage.classList.add('opacity-0', 'scale-95');
+            
+            exerciseScreen.classList.remove('opacity-100');
+            exerciseScreen.classList.add('opacity-0', 'pointer-events-none');
+            
+            setTimeout(() => {
+                exerciseScreen.classList.add('hidden');
+                setupScreen.classList.remove('hidden');
+                setupScreen.classList.remove('opacity-0', 'pointer-events-none');
+                
+                phaseText.textContent = 'Preparati';
+                timerText.textContent = '0';
+                timerText.style.opacity = '0';
+                bubble.className = 'w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-full bubble z-10';
+                bubble.style.setProperty('--bubble-scale', '1');
+                bubble.style.transition = 'transform 2s cubic-bezier(0.4, 0, 0.2, 1)';
+                setDarkGradient();
+                
+                phaseText.classList.remove('opacity-0');
+                stopBtn.classList.remove('opacity-0');
+            }, 500);
+        }
+
+        function masterTick() {
+            if (!state.isRunning) {
+                clearInterval(state.intervalId);
+                return;
+            }
+
+            state.timer--;
+            
+            if (state.timer >= 1) {
+                renderUpdate(false);
+            } else {
+                moveToNextPhase();
+            }
+        }
+        
+        function moveToNextPhase() {
+            clearInterval(state.intervalId);
+
+            if (state.currentPhaseIndex === 3 && state.currentDuration >= state.endDuration) {
+                endSession();
+                return;
+            }
+            
+            if (state.currentPhaseIndex === 3) {
+                if (state.currentDuration < state.endDuration) {
+                    state.currentDuration++;
+                }
+            }
+            state.currentPhaseIndex = (state.currentPhaseIndex + 1) % state.phases.length;
+            state.timer = state.currentDuration;
+            
+            renderUpdate(true);
+            state.intervalId = setInterval(masterTick, 1000);
+        }
+        
+        function endSession() {
+            state.isRunning = false;
+            clearInterval(state.intervalId);
+            body.classList.add('session-ended');
+            playBreathSound();
+
+            setDarkGradient();
+
+            phaseText.classList.add('opacity-0');
+            timerText.style.opacity = '0';
+            stopBtn.classList.add('opacity-0');
+
+            bubble.style.transition = 'transform 2.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 2.5s ease-out';
+            bubble.style.setProperty('--bubble-scale', '25');
+            bubble.classList.add('opacity-0');
+
+            setTimeout(() => {
+                completionScreen.classList.remove('hidden');
+                setTimeout(() => {
+                    completionMessage.classList.remove('opacity-0', 'scale-95');
+                }, 100);
+            }, 2000);
+        }
+
+        function renderUpdate(isFirstBeat) {
+            // Play sound precisely on the beat
+            if (isFirstBeat) {
+                playSound(660, 0.5);
+            } else {
+                playSound(330, 0.3);
+            }
+
+            // Update UI elements only on the first beat of a phase
+            if (isFirstBeat) {
+                const currentPhaseName = state.phases[state.currentPhaseIndex];
+                const styleKey = state.currentPhaseIndex === 1 ? 'Trattieni' : state.currentPhaseIndex === 3 ? 'Trattieni ' : currentPhaseName;
+                const styles = phaseStyles[styleKey];
+
+                body.style.background = `linear-gradient(135deg, ${styles.color})`;
+                phaseText.textContent = currentPhaseName;
+                
+                const isActionPhase = (styleKey === 'Inspira' || styleKey === 'Espira');
+                const transitionDuration = isActionPhase ? state.currentDuration : 0.2;
+                
+                bubble.style.transition = `transform ${transitionDuration}s linear`;
+                
+                const targetScale = (styleKey === 'Inspira' || styleKey === 'Trattieni') ? '2.5' : '1';
+                bubble.style.setProperty('--bubble-scale', targetScale);
+            }
+
+            // Animate timer number with a slight delay for effect
+            timerText.style.opacity = '0';
+            timerText.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                timerText.textContent = state.timer;
+                timerText.style.opacity = '1';
+                timerText.style.transform = 'translateY(0)';
+                if (isFirstBeat) {
+                    timerText.classList.add('timer-highlight');
+                    setTimeout(() => {
+                        timerText.classList.remove('timer-highlight');
+                    }, 500);
+                }
+            }, 150);
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', () => { playUISound(); startBreathing(); });
+        stopBtn.addEventListener('click', stopBreathing);
+        restartBtn.addEventListener('click', stopBreathing);
+        notesBtn.addEventListener('click', () => { initAudio(); playUISound(); notesModal.classList.remove('hidden'); });
+        closeNotesBtn.addEventListener('click', () => { initAudio(); playUISound(); notesModal.classList.add('hidden'); });
+
+        startMinusBtn.addEventListener('click', () => {
+            initAudio();
+            playUISound();
+            if (state.startDuration > 4) {
+                state.startDuration--;
+                if(state.endDuration < state.startDuration){
+                    state.endDuration = state.startDuration;
+                }
+                updateDurationDisplay();
+            }
+        });
+        startPlusBtn.addEventListener('click', () => {
+            initAudio();
+            playUISound();
+            if (state.startDuration < 20) {
+                state.startDuration++;
+                 if(state.endDuration < state.startDuration){
+                    state.endDuration = state.startDuration;
+                }
+                updateDurationDisplay();
+            }
+        });
+        endMinusBtn.addEventListener('click', () => {
+            initAudio();
+            playUISound();
+            if (state.endDuration > state.startDuration) {
+                state.endDuration--;
+                updateDurationDisplay();
+            }
+        });
+        endPlusBtn.addEventListener('click', () => {
+            initAudio();
+            playUISound();
+            if (state.endDuration < 20) {
+                state.endDuration++;
+                updateDurationDisplay();
+            }
+        });
+        
+        // Initializer
+        init();
+
+    </script>
+</body>
+</html>
+
+
